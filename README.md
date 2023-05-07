@@ -1,2 +1,2 @@
 # PythonDiscordBot
-Discord bot with general, muscial and games commands. May have bugs
+Discord bot with general, musical and games commands. May have bugs
