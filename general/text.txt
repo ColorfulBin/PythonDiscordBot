@@ -1,0 +1,5 @@
+rgb>pink
+Welcome!
+rgb>cyan
+Discord Bot run by @TheColorfulBin
+------------ SESSION ------------

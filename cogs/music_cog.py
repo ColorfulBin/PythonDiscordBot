@@ -11,7 +11,6 @@ class music_cog(commands.Cog):
         self.bot = bot
         self.is_playing = None
         self.is_paused = None
-        self.is_looped = None
         self.current_song = None
         self.queue = []
         self.current_volume = 1
@@ -24,7 +23,20 @@ class music_cog(commands.Cog):
         self.ffmpeg_options = {"options": "-vn"}
         self.ytdl = yt_dlp.YoutubeDL(self.ytdl_format_options)
 
-    def change_is_playing(self):
+    async def playing(self, ctx):
+
+        def after_played():
+            self.is_playing = False
+            self.queue.pop(0)
+
+        while True:
+            await asyncio.sleep(1)
+            if not self.is_playing and not self.is_paused and self.queue:
+                self.current_song = self.queue[0]
+                self.is_playing = True
+                ctx.guild.voice_client.play(discord.FFmpegPCMAudio(executable=fr"{self.directory}\cogs\ffmpeg\ffmpeg.exe", source=fr"{self.directory}\cogs\songs\{self.current_song}"), after=lambda e: after_played())
+
+    async def change_is_playing(self):
         self.is_playing = not self.is_playing
         self.queue.pop(0)
 
@@ -40,28 +52,17 @@ class music_cog(commands.Cog):
             await ctx.channel.send(embed=embed, delete_after=5.0)
             await ctx.message.add_reaction("❌")
         elif ctx.author.voice:
-            destination = ctx.author.voice.channel
-            if not ctx.guild.voice_client:
-                vc = await destination.connect()
-            else:
-                if ctx.guild.voice_client.channel.id != destination.id:
-                    await ctx.guild.voice_client.move_to(destination)
-                vc = ctx.guild.voice_client
+            try:
+                await ctx.author.voice.channel.connect()
+            except:
+                await ctx.guild.voice_client.move_to(ctx.author.voice.channel)
             os.chdir(fr"{self.directory}\cogs\songs")
             data = self.ytdl.extract_info(search, download=True)
             os.chdir(self.directory)
             if "entries" in data:
                 data = data["entries"][0]
             self.queue.append(self.ytdl.prepare_filename(data))
-            while self.queue:
-                await asyncio.sleep(1)
-                if not self.is_playing and not self.is_paused:
-                    self.is_playing = True
-                    try:
-                        self.current_song = self.queue[0]
-                    except:
-                        pass
-                    vc.play(discord.FFmpegPCMAudio(executable=fr"{self.directory}\cogs\ffmpeg\ffmpeg.exe", source=fr"{self.directory}\cogs\songs\{self.queue[0]}"), after=lambda e: self.change_is_playing())
+            await self.bot.loop.create_task(await self.playing(ctx))
         else:
             embed = discord.Embed(title="User Error",
                                   description="B-but you are not in-n voice channel! :worried:",
@@ -77,7 +78,8 @@ class music_cog(commands.Cog):
         if self.is_playing:
             self.is_playing = False
             self.is_paused = True
-            ctx.guild.voice_client.pause()
+            vc = ctx.guild.voice_client
+            vc.pause()
             await ctx.channel.send(f"{ctx.author.mention}, I stopped the song in your voice channel :smile:")
         else:
             embed = discord.Embed(title="Stop Error",
@@ -91,40 +93,17 @@ class music_cog(commands.Cog):
         aliases=["rs"],
         help="Resumes the last song added")
     async def resume(self, ctx):
-        vc = ctx.guild.voice_client
         if not self.is_playing:
             self.is_playing = None
             self.is_paused = False
             await ctx.channel.send(f"{ctx.author.mention}, I resumed the songs in your voice channel :smile:")
-            while self.queue:
-                await asyncio.sleep(1)
-                if not self.is_playing and not self.is_paused:
-                    self.is_playing = True
-                    self.current_song = self.queue[0]
-                    vc.play(discord.FFmpegPCMAudio(executable=fr"{self.directory}\cogs\ffmpeg\ffmpeg.exe", source=fr"{self.directory}\cogs\songs\{self.queue[0]}"), after=lambda e: self.change_is_playing())
+            await self.playing(ctx)
         else:
             embed = discord.Embed(title="Resume Error",
                                   description="I pl-lay something already! :worried:",
                                   color=discord.Color.red())
             await ctx.channel.send(embed=embed, delete_after=5.0)
             await ctx.message.add_reaction("❌")
-
-    @commands.command(
-        name="loop",
-        aliases=["lp"],
-        help="Loops the current music"
-    )
-    async def loop(self, ctx):
-        vc = ctx.guild.voice_client
-        if vc.is_playing() and self.current_song is not None:
-            self.is_looped = not self.is_looped
-            while self.is_looped:
-                await asyncio.sleep(1)
-                if not self.is_playing and not self.is_paused:
-                    self.is_playing = True
-                    vc.play(discord.FFmpegPCMAudio(executable=fr"{self.directory}\cogs\ffmpeg\ffmpeg.exe", source=fr"{self.directory}\cogs\songs\{self.current_song}"), after=lambda e: self.change_is_playing())
-            ctx.guild.voice_client.pause()
-            self.current_song = None
 
     @commands.command(
         name="volume",
@@ -134,7 +113,16 @@ class music_cog(commands.Cog):
     async def volume(self, ctx, volume: str):
         vc = ctx.message.guild.voice_client
         if volume.endswith("%"):
-            volume = int(volume.split("%")[0])
+            volume = volume.split("%")[0]
+        try:
+            volume = int(volume)
+        except:
+            embed = discord.Embed(title="Volume Error",
+                                  description="I d-don't undertand this number! :worried:",
+                                  color=discord.Color.red())
+            await ctx.channel.send(embed=embed, delete_after=5.0)
+            await ctx.message.add_reaction("❌")
+            return
         if 0 <= volume <= 100:
             volume = volume / 100
             vc.source = discord.PCMVolumeTransformer(vc.source, volume=volume/self.current_volume)
@@ -168,7 +156,7 @@ class music_cog(commands.Cog):
 
     @commands.command(
         name="disconnect",
-        aliases=["ds", "kys"],
+        aliases=["dsc", "kys"],
         help="Disconnects from users voice channel"
     )
     async def disconnect(self, ctx):

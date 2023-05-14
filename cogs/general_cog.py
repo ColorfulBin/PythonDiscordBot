@@ -18,7 +18,7 @@ class general_cog(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, ctx):
         for mute_word in self.moderated_words:
-            if mute_word in ctx.content.lower().split(" "):
+            if mute_word in ctx.content.lower() and not ctx.author.bot:
                 await ctx.delete()
                 mute_word_embed = discord.Embed(title="Message Moderated",
                                                 description=f"**{ctx.author.mention}**, pl-lease do not use b-bad words! :confounded:",
@@ -35,7 +35,11 @@ class general_cog(commands.Cog):
         if member.guild.system_channel:
             await member.guild.system_channel.send(f"`{member.name} has left our family` :sob:")
 
-    @commands.command()
+    @commands.command(
+        name="roll",
+        aliases=["rl"],
+        help="Rolls the number in given diapasone"
+    )
     async def roll(self, ctx, dice):
         try:
             dice = int(dice)
@@ -43,7 +47,11 @@ class general_cog(commands.Cog):
         except ValueError:
             await ctx.channel.send(f"W-wait, **{dice}** isn't look-king like the real dic-ce! :confused:")
 
-    @commands.command()
+    @commands.command(
+        name="choose",
+        aliases=["chs"],
+        help="Chooses random thing from certain list"
+    )
     async def choose(self, ctx, *choices):
         if not choices:
             await ctx.channel.send("W-wait, where ar-re the options?! :cry:")
@@ -52,15 +60,27 @@ class general_cog(commands.Cog):
         else:
             await ctx.channel.send(f"I'll choose **{str(random.choice(choices))}**! Wish I could help you :smile:")
 
-    @commands.command()
+    @commands.command(
+        name="joined",
+        aliases=["jnd"],
+        help="Return date of certain user join"
+    )
     async def joined(self, ctx, member: discord.Member):
         await ctx.channel.send(f"{member.name} joined {discord.utils.format_dt(member.joined_at)} :smile:")
 
-    @commands.command()
+    @commands.command(
+        name="ping",
+        aliases=["pong"],
+        help="Return current bot's ping"
+    )
     async def ping(self, ctx):
         await ctx.channel.send(f"{int(self.bot.latency*1000)} ms! Wish I could help you :smile:")
 
-    @commands.command()
+    @commands.command(
+        name="joke",
+        aliases=["jk"],
+        help="Return random joke"
+    )
     async def joke(self, ctx):
         j = await Jokes()
         blacklist = ["racist"]
@@ -72,7 +92,11 @@ class general_cog(commands.Cog):
         else:
             await ctx.channel.send(str(joke["setup"] + f' ||{joke["delivery"]}||'))
 
-    @commands.command()
+    @commands.command(
+        name="ban",
+        aliases=["bn"],
+        help="Bans certain user"
+    )
     async def ban(self, ctx, member: discord.Member, reason: str):
         if ctx.author.guild_permissions.ban_members:
             await member.ban(reason=reason)
@@ -87,7 +111,11 @@ class general_cog(commands.Cog):
             await ctx.send(embed=embed, delete_after=5.0)
             await ctx.message.add_reaction("❌")
 
-    @commands.command()
+    @commands.command(
+        name="mute",
+        aliases=["mt"],
+        help="Mutes certain user"
+    )
     async def mute(self, ctx, member: discord.Member):
         is_member_muted = False
         for role in member.roles:
@@ -112,7 +140,11 @@ class general_cog(commands.Cog):
             await ctx.send(embed=embed, delete_after=5.0)
             await ctx.message.add_reaction("❌")
 
-    @commands.command()
+    @commands.command(
+        name="unmute",
+        aliases=["unmt"],
+        help="Unmutes ceratin user"
+    )
     async def unmute(self, ctx, member: discord.Member):
         is_member_muted = False
         for role in member.roles:
